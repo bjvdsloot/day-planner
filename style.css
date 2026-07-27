@@ -218,6 +218,15 @@ input, select, textarea {
   border-top: 1px dashed var(--border); padding: 0.5rem; font-size: 0.78rem; color: var(--text-secondary);
 }
 
+.voice-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.voice-row button.listening { background: var(--status-critical); color: #fff; border-color: transparent; animation: voice-pulse 1.2s infinite; }
+#voice-status { font-size: 0.85rem; }
+@keyframes voice-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(208,59,59,0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(208,59,59,0); }
+  100% { box-shadow: 0 0 0 0 rgba(208,59,59,0); }
+}
+
 .add-task-row {
   display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem;
   background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem;

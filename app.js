@@ -485,6 +485,61 @@
     };
   }
 
+  // ---------- Voice add ----------
+  function wireVoiceAdd() {
+    const btn = document.getElementById("voice-add-btn");
+    const status = document.getElementById("voice-status");
+    if (!Voice.supported()) {
+      btn.disabled = true;
+      btn.title = "Voice input isn't supported in this browser — try Chrome.";
+      status.textContent = "Voice input needs Chrome (or another browser with speech recognition).";
+      return;
+    }
+    let listening = false;
+    btn.onclick = async () => {
+      if (listening) return;
+      listening = true;
+      btn.classList.add("listening");
+      status.textContent = "Listening… say something like \"create a task named do the dishes and set it for 8 pm.\"";
+      try {
+        const transcript = await Voice.listen();
+        status.textContent = `Heard: "${transcript}" — thinking…`;
+        const parsed = Voice.parse(transcript, selectedDate);
+        const isToday = parsed.dateStr === todayStr();
+        Voice.speak(Voice.describeForSpeech(parsed, isToday)).catch(() => {});
+        status.textContent = "";
+        openModal("Confirm voice task", [
+          { key: "title", label: "Title", type: "text", value: parsed.title },
+          { key: "category", label: "Category", type: "select", value: parsed.category, options: [
+            { value: "schedule", label: "Schedule" }, { value: "financial", label: "Financial" },
+            { value: "health", label: "Health" }, { value: "personal", label: "Personal" }
+          ] },
+          { key: "dateStr", label: "Date", type: "date", value: parsed.dateStr },
+          { key: "start", label: "Exact time (leave blank to auto-schedule)", type: "time", value: parsed.start || "" },
+          { key: "duration_min", label: "Duration (minutes)", type: "number", value: parsed.duration_min }
+        ], (values) => {
+          if (!values.title || !values.title.trim()) return;
+          const duration_min = parseInt(values.duration_min, 10) || 30;
+          const targetDay = ensureDay(values.dateStr);
+          targetDay.tasks.push({
+            id: uid(), title: values.title.trim(), category: values.category,
+            duration_min, priority: 2, energy: "medium", preferredWindow: "any",
+            start: values.start || null,
+            end: values.start ? Scheduler.minToTime(Scheduler.timeToMin(values.start) + duration_min) : null,
+            done: false, fixed: !!values.start, unscheduled: !values.start
+          });
+          selectedDate = values.dateStr;
+          persist(); renderToday();
+        });
+      } catch (err) {
+        status.textContent = err.message || "Voice input failed — try again.";
+      } finally {
+        listening = false;
+        btn.classList.remove("listening");
+      }
+    };
+  }
+
   // ---------- Log view ----------
   function renderLog(dateStr) {
     const day = ensureDay(dateStr);
@@ -572,6 +627,8 @@
         Reminders.scheduleInAppNotifications(day.tasks, selectedDate);
       });
     };
+
+    wireVoiceAdd();
 
     document.getElementById("day-prev").onclick = () => { selectedDate = addDays(selectedDate, -1); renderToday(); };
     document.getElementById("day-next").onclick = () => { selectedDate = addDays(selectedDate, 1); renderToday(); };

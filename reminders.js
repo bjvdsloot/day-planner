@@ -55,10 +55,16 @@ const Reminders = (() => {
         `DTEND:${toICSDateTime(dateStr, t.end || t.start)}`,
         `SUMMARY:${escapeICS(t.title)}`,
         `DESCRIPTION:${escapeICS((t.category || "task") + " task from Day Planner")}`,
+        // Two alarms per event: 1 hour before and 30 minutes before.
         "BEGIN:VALARM",
-        "TRIGGER:-PT10M",
+        "TRIGGER:-PT60M",
         "ACTION:DISPLAY",
-        `DESCRIPTION:${escapeICS(t.title)}`,
+        `DESCRIPTION:${escapeICS(t.title + " — in 1 hour")}`,
+        "END:VALARM",
+        "BEGIN:VALARM",
+        "TRIGGER:-PT30M",
+        "ACTION:DISPLAY",
+        `DESCRIPTION:${escapeICS(t.title + " — in 30 minutes")}`,
         "END:VALARM",
         "END:VEVENT"
       );
@@ -84,24 +90,33 @@ const Reminders = (() => {
     URL.revokeObjectURL(url);
   }
 
-  // Best-effort in-app notification while this tab/PWA is open (a nice extra,
-  // not a replacement for the calendar-based reminders above).
+  // Best-effort in-app notifications while this tab/PWA stays open (a nice
+  // extra — NOT a replacement for the calendar-based reminders above, since
+  // mobile browsers suspend timers once the tab isn't in the foreground.
+  // Fires at 1 hour before, 30 minutes before, and at start time.
   function scheduleInAppNotifications(tasks, dateStr) {
     if (!("Notification" in window)) return;
     if (Notification.permission !== "granted") return;
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
     if (dateStr !== todayStr) return;
+    const offsets = [
+      { minutesBefore: 60, label: "in 1 hour" },
+      { minutesBefore: 30, label: "in 30 minutes" },
+      { minutesBefore: 0, label: "now" }
+    ];
     tasks.filter(t => t.start && !t.unscheduled && !t.done).forEach(t => {
       const [hh, mm] = t.start.split(":").map(Number);
       const target = new Date();
       target.setHours(hh, mm, 0, 0);
-      const msUntil = target.getTime() - Date.now();
-      if (msUntil > 0 && msUntil < 24 * 60 * 60 * 1000) {
-        setTimeout(() => {
-          try { new Notification(`Day Planner: ${t.title}`, { body: `Starting now (${t.start})` }); } catch (e) {}
-        }, msUntil);
-      }
+      offsets.forEach(({ minutesBefore, label }) => {
+        const msUntil = target.getTime() - minutesBefore * 60000 - Date.now();
+        if (msUntil > 0 && msUntil < 24 * 60 * 60 * 1000) {
+          setTimeout(() => {
+            try { new Notification(`Day Planner: ${t.title}`, { body: `Starting ${label} (${t.start})` }); } catch (e) {}
+          }, msUntil);
+        }
+      });
     });
   }
 
