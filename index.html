@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Day Planner</title>
+<meta name="description" content="Personal schedule, health, and finance planner with reminders and progress tracking." />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#2a78d6" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="stylesheet" href="style.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" onerror="this.onerror=null;document.write('&lt;script src=\'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js\'&gt;&lt;/script&gt;')"></script>
+</head>
+<body>
+
+<div id="setup-screen" class="setup-screen hidden">
+  <div class="setup-card">
+    <h1>Set up your Day Planner</h1>
+    <p class="muted">Your data lives in a private GitHub Gist you control &mdash; free, and synced between every device you open this app on. See <code>README.md</code> for the 5&#8209;minute one-time setup.</p>
+    <label>GitHub personal access token (Gist scope only)
+      <input type="password" id="setup-token" placeholder="github_pat_..." autocomplete="off" />
+    </label>
+    <label>Gist ID
+      <input type="text" id="setup-gist" placeholder="e.g. 3f1b2c..." autocomplete="off" />
+    </label>
+    <div class="setup-actions">
+      <button id="setup-connect" class="btn-primary">Connect</button>
+      <button id="setup-local" class="btn-ghost">Skip &mdash; use this device only</button>
+    </div>
+    <p id="setup-error" class="error hidden"></p>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <header class="app-header">
+    <div class="brand">Day Planner</div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-view="today">Today</button>
+      <button class="tab" data-view="dashboard">Dashboard</button>
+      <button class="tab" data-view="goals">Goals</button>
+      <button class="tab" data-view="log">Log</button>
+      <button class="tab" data-view="settings">Settings</button>
+    </nav>
+    <div class="sync-status" id="sync-status" title="Sync status">&#9679; local</div>
+  </header>
+
+  <main id="views">
+
+    <section id="view-today" class="view active">
+      <div class="view-header">
+        <h2 id="today-date">Today</h2>
+        <button id="auto-schedule-btn" class="btn-primary">Auto-schedule my day</button>
+      </div>
+
+      <div class="add-task-row">
+        <input type="text" id="new-task-title" placeholder="Add a task (e.g. Gym, Pay bills, Deep work)" />
+        <select id="new-task-category">
+          <option value="schedule">Schedule</option>
+          <option value="financial">Financial</option>
+          <option value="health">Health</option>
+          <option value="personal">Personal</option>
+        </select>
+        <input type="number" id="new-task-duration" min="5" step="5" value="30" title="Minutes" />
+        <select id="new-task-priority">
+          <option value="1">Low priority</option>
+          <option value="2">Medium priority</option>
+          <option value="3" selected>High priority</option>
+        </select>
+        <select id="new-task-energy">
+          <option value="high">High energy</option>
+          <option value="medium" selected>Medium energy</option>
+          <option value="low">Low energy</option>
+        </select>
+        <button id="add-task-btn" class="btn-secondary">Add</button>
+      </div>
+
+      <div id="task-list" class="task-list"></div>
+
+      <div class="today-summary">
+        <div class="stat-tile">
+          <div class="stat-label">Completion</div>
+          <div class="stat-value" id="stat-completion">0%</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Scheduled time</div>
+          <div class="stat-value" id="stat-scheduled-time">0h</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Free time</div>
+          <div class="stat-value" id="stat-free-time">0h</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-dashboard" class="view">
+      <div class="view-header"><h2>Dashboard</h2>
+        <select id="dashboard-range">
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+      </div>
+      <div class="stat-row" id="dashboard-stats"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Net worth trend</h3><canvas id="chart-networth"></canvas></div>
+        <div class="chart-card"><h3>Spending vs. budget</h3><canvas id="chart-budget"></canvas></div>
+        <div class="chart-card"><h3>Schedule adherence</h3><canvas id="chart-adherence"></canvas></div>
+        <div class="chart-card"><h3>Workout minutes</h3><canvas id="chart-workout"></canvas></div>
+        <div class="chart-card"><h3>Sleep hours</h3><canvas id="chart-sleep"></canvas></div>
+        <div class="chart-card"><h3>Mood</h3><canvas id="chart-mood"></canvas></div>
+      </div>
+      <div id="no-data-msg" class="muted hidden">Log a few days on the <strong>Log</strong> tab to see charts here.</div>
+    </section>
+
+    <section id="view-goals" class="view">
+      <div class="view-header"><h2>Goals</h2></div>
+      <div class="goals-columns">
+        <div class="goal-column">
+          <h3>Financial</h3>
+          <div id="goals-financial" class="goal-list"></div>
+          <button class="btn-secondary add-goal-btn" data-cat="financial">+ Add financial goal</button>
+        </div>
+        <div class="goal-column">
+          <h3>Health</h3>
+          <div id="goals-health" class="goal-list"></div>
+          <button class="btn-secondary add-goal-btn" data-cat="health">+ Add health goal</button>
+        </div>
+        <div class="goal-column">
+          <h3>Schedule</h3>
+          <div id="goals-schedule" class="goal-list"></div>
+          <button class="btn-secondary add-goal-btn" data-cat="schedule">+ Add schedule goal</button>
+        </div>
+      </div>
+      <div class="view-header" style="margin-top:2rem"><h2>Recurring routine</h2></div>
+      <p class="muted">These repeat automatically and feed the auto-scheduler (workouts, budgeting time, deep work blocks, etc).</p>
+      <div id="recurring-list" class="recurring-list"></div>
+      <button class="btn-secondary" id="add-recurring-btn">+ Add recurring task</button>
+    </section>
+
+    <section id="view-log" class="view">
+      <div class="view-header"><h2>Daily log</h2>
+        <input type="date" id="log-date" />
+      </div>
+      <div class="log-grid">
+        <div class="log-card">
+          <h3>Financial</h3>
+          <label>Spent today ($) <input type="number" id="log-spend" step="0.01" /></label>
+          <label>Income today ($) <input type="number" id="log-income" step="0.01" /></label>
+          <label>Net worth (optional snapshot, $) <input type="number" id="log-networth" step="0.01" /></label>
+        </div>
+        <div class="log-card">
+          <h3>Health</h3>
+          <label>Workout minutes <input type="number" id="log-workout" step="1" /></label>
+          <label>Sleep hours (last night) <input type="number" id="log-sleep" step="0.1" /></label>
+          <label>Weight (optional) <input type="number" id="log-weight" step="0.1" /></label>
+          <label>Mood (1&ndash;5)
+            <input type="range" id="log-mood" min="1" max="5" step="1" value="3" />
+          </label>
+        </div>
+        <div class="log-card">
+          <h3>Notes</h3>
+          <textarea id="log-notes" rows="6" placeholder="Anything worth remembering about today..."></textarea>
+        </div>
+      </div>
+      <button id="save-log-btn" class="btn-primary">Save log entry</button>
+      <p id="log-saved-msg" class="muted hidden">Saved.</p>
+    </section>
+
+    <section id="view-settings" class="view">
+      <div class="view-header"><h2>Settings</h2></div>
+      <div class="settings-grid">
+        <label>Wake time <input type="time" id="setting-wake" /></label>
+        <label>Sleep time <input type="time" id="setting-sleep" /></label>
+        <label>Work hours start <input type="time" id="setting-work-start" /></label>
+        <label>Work hours end <input type="time" id="setting-work-end" /></label>
+      </div>
+      <button id="save-settings-btn" class="btn-primary">Save settings</button>
+
+      <div class="view-header" style="margin-top:2rem"><h2>Sync</h2></div>
+      <p class="muted" id="sync-detail"></p>
+      <button id="sync-now-btn" class="btn-secondary">Sync now</button>
+      <button id="reconfigure-sync-btn" class="btn-ghost">Reconfigure Gist sync</button>
+
+      <div class="view-header" style="margin-top:2rem"><h2>Data</h2></div>
+      <button id="export-json-btn" class="btn-ghost">Export all data (.json backup)</button>
+      <button id="install-pwa-btn" class="btn-ghost hidden">Install app to home screen</button>
+    </section>
+
+  </main>
+</div>
+
+<script src="gistSync.js"></script>
+<script src="scheduler.js"></script>
+<script src="reminders.js"></script>
+<script src="charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
