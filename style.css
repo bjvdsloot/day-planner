@@ -184,6 +184,40 @@ input, select, textarea {
 .day-chip .chip-dot { position: absolute; top: 4px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--series-3); }
 .day-chip.selected .chip-dot { background: #fff; }
 
+.timeline-wrap {
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1);
+  max-height: 480px; overflow-y: auto; margin-bottom: 0.25rem; position: relative;
+}
+.timeline { position: relative; margin-left: 52px; }
+.timeline-hour {
+  position: absolute; left: -52px; right: 0; border-top: 1px solid var(--gridline);
+}
+.timeline-hour .hour-label {
+  position: absolute; left: 0; top: -8px; width: 44px; text-align: right;
+  font-size: 0.72rem; color: var(--text-muted); background: var(--surface-1); padding-right: 4px;
+}
+.timeline-hour.hour-half { border-top: 1px dashed var(--gridline); }
+.timeline-click-target { position: absolute; left: 0; right: 0; cursor: pointer; }
+.timeline-click-target:hover { background: rgba(42,120,214,0.06); }
+.timeline-now-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--status-critical); z-index: 3; }
+.timeline-now-line::before {
+  content: ""; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--status-critical);
+}
+.timeline-task {
+  position: absolute; border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.78rem; color: #fff;
+  overflow: hidden; box-shadow: 0 0 0 2px var(--surface-1); cursor: default; z-index: 2;
+}
+.timeline-task.done { opacity: 0.5; text-decoration: line-through; }
+.timeline-task .tt-title { font-weight: 600; display: block; }
+.timeline-task .tt-time { font-size: 0.7rem; opacity: 0.9; }
+.timeline-task.financial { background: var(--series-2); }
+.timeline-task.health { background: var(--series-3); }
+.timeline-task.schedule { background: var(--series-1); }
+.timeline-task.personal { background: var(--series-7); }
+.timeline-unscheduled-strip {
+  border-top: 1px dashed var(--border); padding: 0.5rem; font-size: 0.78rem; color: var(--text-secondary);
+}
+
 .add-task-row {
   display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem;
   background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem;

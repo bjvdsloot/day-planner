@@ -1,8 +1,10 @@
 /**
- * Minimal service worker: caches the app shell so it loads instantly and
- * works offline (your data still syncs to the Gist once you're back online).
+ * Service worker: network-first for the app shell, so a fresh upload always
+ * shows up on your next reload — with a cached fallback only when you're
+ * offline. (v1 of this file used cache-first, which meant updates could take
+ * an extra reload or two to show up. Network-first fixes that.)
  */
-const CACHE_NAME = "day-planner-v1";
+const CACHE_NAME = "day-planner-v2-network-first";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -33,17 +35,17 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  // Never cache API calls (GitHub Gist sync) — always go to network for those.
+  // Never touch API calls (GitHub Gist sync) — always straight to network.
   if (url.origin.includes("api.github.com")) return;
   if (url.origin !== self.location.origin) return; // let CDN scripts (Chart.js) pass through normally
+  if (event.request.method !== "GET") return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
+    fetch(event.request)
+      .then((networkResponse) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse.clone()));
         return networkResponse;
-      }).catch(() => cached);
-      return cached || fetchPromise;
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });

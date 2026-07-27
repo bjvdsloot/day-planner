@@ -178,11 +178,120 @@
     }
   }
 
+  function renderTimeline(day) {
+    const wrap = document.getElementById("timeline-wrap");
+    const el = document.getElementById("timeline");
+    el.innerHTML = "";
+    const windows = Scheduler.buildWindows(state.settings);
+    const pxPerMin = 1;
+    const totalMin = Math.max(60, windows.sleep - windows.wake);
+    el.style.height = (totalMin * pxPerMin) + "px";
+
+    for (let m = 0; m <= totalMin; m += 30) {
+      const absMin = windows.wake + m;
+      const hour = Math.floor(absMin / 60) % 24;
+      const isHour = absMin % 60 === 0;
+      const line = document.createElement("div");
+      line.className = "timeline-hour" + (isHour ? "" : " hour-half");
+      line.style.top = (m * pxPerMin) + "px";
+      if (isHour) {
+        const label = document.createElement("span");
+        label.className = "hour-label";
+        label.textContent = hour === 0 ? "12 AM" : hour < 12 ? `${hour} AM` : hour === 12 ? "12 PM" : `${hour - 12} PM`;
+        line.appendChild(label);
+      }
+      el.appendChild(line);
+    }
+
+    const clickTarget = document.createElement("div");
+    clickTarget.className = "timeline-click-target";
+    clickTarget.style.top = "0px";
+    clickTarget.style.height = (totalMin * pxPerMin) + "px";
+    clickTarget.onclick = (e) => {
+      const rect = clickTarget.getBoundingClientRect();
+      const offsetY = e.clientY - rect.top;
+      let minuteFromWake = Math.round((offsetY / pxPerMin) / 15) * 15;
+      minuteFromWake = Math.max(0, Math.min(totalMin - 15, minuteFromWake));
+      const startStr = Scheduler.minToTime(windows.wake + minuteFromWake);
+      openModal(`Add task at ${startStr}`, [
+        { key: "title", label: "Title", type: "text" },
+        { key: "category", label: "Category", type: "select", options: [
+          { value: "schedule", label: "Schedule" }, { value: "financial", label: "Financial" },
+          { value: "health", label: "Health" }, { value: "personal", label: "Personal" }
+        ] },
+        { key: "duration_min", label: "Duration (minutes)", type: "number", value: 30 }
+      ], (values) => {
+        if (!values.title || !values.title.trim()) return;
+        const duration_min = parseInt(values.duration_min, 10) || 30;
+        day.tasks.push({
+          id: uid(), title: values.title.trim(), category: values.category,
+          duration_min, priority: 2, energy: "medium", preferredWindow: "any",
+          start: startStr, end: Scheduler.minToTime(Scheduler.timeToMin(startStr) + duration_min),
+          done: false, fixed: true, unscheduled: false
+        });
+        persist(); renderToday();
+      });
+    };
+    el.appendChild(clickTarget);
+
+    if (selectedDate === todayStr()) {
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      if (nowMin >= windows.wake && nowMin <= windows.sleep) {
+        const nowLine = document.createElement("div");
+        nowLine.className = "timeline-now-line";
+        nowLine.style.top = ((nowMin - windows.wake) * pxPerMin) + "px";
+        el.appendChild(nowLine);
+      }
+    }
+
+    const timed = day.tasks.filter(t => t.start && !t.unscheduled).map(t => ({
+      ...t, startMin: Scheduler.timeToMin(t.start), endMin: Scheduler.timeToMin(t.end || t.start)
+    })).sort((a, b) => a.startMin - b.startMin);
+
+    const columnsEnd = [];
+    timed.forEach(t => {
+      let col = columnsEnd.findIndex(endMin => endMin <= t.startMin);
+      if (col === -1) { col = columnsEnd.length; columnsEnd.push(t.endMin); }
+      else columnsEnd[col] = t.endMin;
+      t._col = col;
+    });
+    timed.forEach(t => {
+      const overlapping = timed.filter(o => o.startMin < t.endMin && o.endMin > t.startMin);
+      t._totalCols = Math.max(...overlapping.map(o => o._col)) + 1;
+    });
+
+    timed.forEach(t => {
+      const top = Math.max(0, (t.startMin - windows.wake) * pxPerMin);
+      const height = Math.max(18, (t.endMin - t.startMin) * pxPerMin - 2);
+      const widthPct = 100 / t._totalCols;
+      const leftPct = widthPct * t._col;
+      const block = document.createElement("div");
+      block.className = `timeline-task ${t.category}` + (t.done ? " done" : "");
+      block.style.top = top + "px";
+      block.style.height = height + "px";
+      block.style.left = `calc(${leftPct}% + 2px)`;
+      block.style.width = `calc(${widthPct}% - 6px)`;
+      block.title = `${t.title} (${t.start}–${t.end})`;
+      block.innerHTML = `<span class="tt-title">${escapeHTML(t.title)}</span><span class="tt-time">${t.start}–${t.end}</span>`;
+      el.appendChild(block);
+    });
+
+    if (selectedDate === todayStr()) {
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      wrap.scrollTop = Math.max(0, (nowMin - windows.wake - 60) * pxPerMin);
+    } else {
+      wrap.scrollTop = 0;
+    }
+  }
+
   function renderToday() {
     document.getElementById("today-date").textContent = formatDayHeader(selectedDate);
     document.getElementById("day-picker").value = selectedDate;
     renderDayStrip();
     const day = ensureDay(selectedDate);
+    renderTimeline(day);
     const list = document.getElementById("task-list");
     list.innerHTML = "";
     if (!day.tasks.length) {
