@@ -161,6 +161,29 @@ input, select, textarea {
 .view-header h2 { margin: 0; }
 
 /* Today view */
+.day-nav { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.day-nav h2 { margin: 0; min-width: 170px; }
+.day-nav button { padding: 0.4rem 0.6rem; }
+.day-nav input[type="date"] { max-width: 150px; }
+.day-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.day-strip {
+  display: flex; gap: 0.5rem; overflow-x: auto; padding: 0.25rem 0 1rem;
+  scrollbar-width: thin;
+}
+.day-chip {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
+  border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary);
+  border-radius: 10px; padding: 0.4rem 0.7rem; cursor: pointer; font-size: 0.78rem; position: relative;
+}
+.day-chip .chip-dow { font-weight: 600; }
+.day-chip .chip-num { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.day-chip.selected { background: var(--series-1); border-color: transparent; }
+.day-chip.selected .chip-num, .day-chip.selected .chip-dow { color: #fff; }
+.day-chip.is-today:not(.selected) { border-color: var(--series-1); }
+.day-chip .chip-dot { position: absolute; top: 4px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--series-3); }
+.day-chip.selected .chip-dot { background: #fff; }
+
 .add-task-row {
   display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem;
   background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem;

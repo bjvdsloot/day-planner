@@ -48,9 +48,20 @@
 
     <section id="view-today" class="view active">
       <div class="view-header">
-        <h2 id="today-date">Today</h2>
-        <button id="auto-schedule-btn" class="btn-primary">Auto-schedule my day</button>
+        <div class="day-nav">
+          <button id="day-prev" class="btn-ghost" aria-label="Previous day">&#8249;</button>
+          <h2 id="today-date">Today</h2>
+          <button id="day-next" class="btn-ghost" aria-label="Next day">&#8250;</button>
+          <button id="day-today-btn" class="btn-ghost">Jump to today</button>
+          <input type="date" id="day-picker" title="Jump to a date" />
+        </div>
+        <div class="day-actions">
+          <button id="export-ics-btn" class="btn-secondary">Export this day (.ics)</button>
+          <button id="auto-schedule-btn" class="btn-primary">Auto-schedule this day</button>
+        </div>
       </div>
+
+      <div class="day-strip" id="day-strip"></div>
 
       <div class="add-task-row">
         <input type="text" id="new-task-title" placeholder="Add a task (e.g. Gym, Pay bills, Deep work)" />
@@ -60,7 +71,8 @@
           <option value="health">Health</option>
           <option value="personal">Personal</option>
         </select>
-        <input type="number" id="new-task-duration" min="5" step="5" value="30" title="Minutes" />
+        <input type="number" id="new-task-duration" min="5" step="5" value="30" title="Duration (minutes)" />
+        <input type="time" id="new-task-time" title="Exact start time (optional — leave blank to auto-schedule later)" />
         <select id="new-task-priority">
           <option value="1">Low priority</option>
           <option value="2">Medium priority</option>
@@ -73,6 +85,7 @@
         </select>
         <button id="add-task-btn" class="btn-secondary">Add</button>
       </div>
+      <p class="muted" style="margin:-0.5rem 0 1rem;font-size:0.8rem">Leave the time field blank to let auto-schedule place it for you, or set an exact time to lock it in place.</p>
 
       <div id="task-list" class="task-list"></div>
 

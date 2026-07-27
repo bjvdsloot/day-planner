@@ -45,7 +45,8 @@ You can also skip the sync setup entirely and use it on a single device — ever
 
 ## Using it day to day
 
-- **Today tab:** add tasks, then click **Auto-schedule my day** — it time-blocks everything around your wake/sleep times and each task's priority and energy level (set these in Settings and when adding tasks). Click the 📅 icon on any scheduled task to add it straight to Google Calendar so you get a real phone notification.
+- **Today tab:** add tasks, then click **Auto-schedule this day** — it time-blocks everything around your wake/sleep times and each task's priority and energy level (set these in Settings and when adding tasks). Want a task at an exact time instead of letting the scheduler pick? Fill in the time field when adding it, or click the 🕐 icon on any existing task to lock in (or change) its exact time — auto-schedule will always leave locked-time tasks alone. Click the 📅 icon on any scheduled task to add it straight to Google Calendar so you get a real phone notification, or use **Export this day (.ics)** to grab the whole day at once.
+- **Planning ahead:** use the ‹ › arrows, the day-strip, or the date picker at the top of the Today tab to jump to any past or future date — each day keeps its own tasks and log entries, so you can build out tomorrow, next week, or further ahead whenever you like.
 - **Goals tab:** set financial, health, and schedule goals, and set up recurring tasks (workouts, budgeting time, deep work blocks) that auto-populate each day they're active.
 - **Log tab:** a 30-second daily check-in — money spent/earned, workout minutes, sleep, mood, notes. This is what feeds the Dashboard charts.
 - **Dashboard tab:** net worth trend, spending vs. budget, schedule adherence, workout minutes, sleep, and mood over the last 7/30/90 days.

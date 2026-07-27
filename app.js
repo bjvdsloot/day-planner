@@ -5,6 +5,7 @@
   const LS_LOCAL_ONLY = "dp_local_only";
 
   let state = null;
+  let selectedDate = null; // the date currently shown on the Today/Day view — set in init()
 
   // ---------- helpers ----------
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -13,6 +14,16 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
   function dayOfWeek(dateStr) { return new Date(dateStr + "T00:00:00").getDay(); }
+  function addDays(dateStr, delta) {
+    const d = new Date(dateStr + "T00:00:00");
+    d.setDate(d.getDate() + delta);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  function formatDayHeader(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    const nice = d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+    return dateStr === todayStr() ? `Today — ${nice}` : nice;
+  }
 
   function emptyState() {
     return {
@@ -149,15 +160,33 @@
     };
   }
 
-  // ---------- Today view ----------
+  // ---------- Today / Day view ----------
+  function renderDayStrip() {
+    const strip = document.getElementById("day-strip");
+    strip.innerHTML = "";
+    const start = addDays(selectedDate, -3);
+    for (let i = 0; i < 12; i++) {
+      const d = addDays(start, i);
+      const existing = state.days[d];
+      const hasTasks = existing && existing.tasks && existing.tasks.length > 0;
+      const dt = new Date(d + "T00:00:00");
+      const chip = document.createElement("button");
+      chip.className = "day-chip" + (d === selectedDate ? " selected" : "") + (d === todayStr() ? " is-today" : "");
+      chip.innerHTML = `<span class="chip-dow">${dt.toLocaleDateString(undefined, { weekday: "short" })}</span><span class="chip-num">${dt.getDate()}</span>${hasTasks ? '<span class="chip-dot"></span>' : ""}`;
+      chip.onclick = () => { selectedDate = d; renderToday(); };
+      strip.appendChild(chip);
+    }
+  }
+
   function renderToday() {
-    const dateStr = todayStr();
-    document.getElementById("today-date").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-    const day = ensureDay(dateStr);
+    document.getElementById("today-date").textContent = formatDayHeader(selectedDate);
+    document.getElementById("day-picker").value = selectedDate;
+    renderDayStrip();
+    const day = ensureDay(selectedDate);
     const list = document.getElementById("task-list");
     list.innerHTML = "";
     if (!day.tasks.length) {
-      list.innerHTML = `<p class="muted">No tasks yet today — add one above, or set up a recurring routine on the Goals tab.</p>`;
+      list.innerHTML = `<p class="muted">No tasks yet for this day — add one above, or set up a recurring routine on the Goals tab.</p>`;
     }
     day.tasks.forEach(t => {
       const row = document.createElement("div");
@@ -168,6 +197,7 @@
         <span class="task-title">${escapeHTML(t.title)}</span>
         <span class="task-cat ${t.category}">${t.category}</span>
         <span class="task-actions">
+          <button data-action="settime" data-id="${t.id}" title="Set exact time">🕐</button>
           <button data-action="ics" data-id="${t.id}" title="Add to calendar">📅</button>
           <button data-action="delete" data-id="${t.id}" title="Delete">✕</button>
         </span>`;
@@ -185,8 +215,23 @@
     });
     list.querySelectorAll('[data-action="ics"]').forEach(el => el.onclick = () => {
       const t = day.tasks.find(t => t.id === el.dataset.id);
-      if (!t.start) { alert("Auto-schedule this task first (or set a time) before adding it to your calendar."); return; }
-      window.open(Reminders.googleCalendarLink(t, dateStr), "_blank");
+      if (!t.start) { alert("Set an exact time (🕐) or auto-schedule this day first, before adding it to your calendar."); return; }
+      window.open(Reminders.googleCalendarLink(t, selectedDate), "_blank");
+    });
+    list.querySelectorAll('[data-action="settime"]').forEach(el => el.onclick = () => {
+      const t = day.tasks.find(t => t.id === el.dataset.id);
+      openModal("Set exact time", [
+        { key: "start", label: "Start time", type: "time", value: t.start || "09:00" },
+        { key: "duration_min", label: "Duration (minutes)", type: "number", value: t.duration_min || 30 }
+      ], (values) => {
+        const durationMin = parseInt(values.duration_min, 10) || 30;
+        t.start = values.start;
+        t.duration_min = durationMin;
+        t.end = Scheduler.minToTime(Scheduler.timeToMin(values.start) + durationMin);
+        t.fixed = true;
+        t.unscheduled = false;
+        persist(); renderToday();
+      });
     });
 
     const scheduledMin = day.tasks.filter(t => t.start).reduce((s, t) => s + (t.duration_min || 0), 0);
@@ -389,26 +434,45 @@
     document.getElementById("add-task-btn").onclick = () => {
       const title = document.getElementById("new-task-title").value.trim();
       if (!title) return;
-      const day = ensureDay(todayStr());
+      const duration_min = parseInt(document.getElementById("new-task-duration").value, 10) || 30;
+      const exactTime = document.getElementById("new-task-time").value; // "" if not set
+      const day = ensureDay(selectedDate);
       day.tasks.push({
         id: uid(), title,
         category: document.getElementById("new-task-category").value,
-        duration_min: parseInt(document.getElementById("new-task-duration").value, 10) || 30,
+        duration_min,
         priority: parseInt(document.getElementById("new-task-priority").value, 10),
         energy: document.getElementById("new-task-energy").value,
-        preferredWindow: "any", start: null, end: null, done: false, fixed: false, unscheduled: true
+        preferredWindow: "any",
+        start: exactTime || null,
+        end: exactTime ? Scheduler.minToTime(Scheduler.timeToMin(exactTime) + duration_min) : null,
+        done: false,
+        fixed: !!exactTime,
+        unscheduled: !exactTime
       });
       document.getElementById("new-task-title").value = "";
+      document.getElementById("new-task-time").value = "";
       persist(); renderToday();
     };
 
     document.getElementById("auto-schedule-btn").onclick = () => {
-      const day = ensureDay(todayStr());
+      const day = ensureDay(selectedDate);
       day.tasks = Scheduler.schedule(day.tasks, state.settings);
       persist(); renderToday();
       Reminders.requestNotificationPermission().then(() => {
-        Reminders.scheduleInAppNotifications(day.tasks, todayStr());
+        Reminders.scheduleInAppNotifications(day.tasks, selectedDate);
       });
+    };
+
+    document.getElementById("day-prev").onclick = () => { selectedDate = addDays(selectedDate, -1); renderToday(); };
+    document.getElementById("day-next").onclick = () => { selectedDate = addDays(selectedDate, 1); renderToday(); };
+    document.getElementById("day-today-btn").onclick = () => { selectedDate = todayStr(); renderToday(); };
+    document.getElementById("day-picker").onchange = (e) => { if (e.target.value) { selectedDate = e.target.value; renderToday(); } };
+    document.getElementById("export-ics-btn").onclick = () => {
+      const day = ensureDay(selectedDate);
+      const scheduledCount = day.tasks.filter(t => t.start && !t.unscheduled).length;
+      if (!scheduledCount) { alert("No tasks with a set time yet on this day — set exact times or auto-schedule first."); return; }
+      Reminders.downloadICS(day.tasks, selectedDate);
     };
 
     document.getElementById("log-date").value = todayStr();
@@ -500,6 +564,7 @@
     if (!state.goals) state.goals = emptyState().goals;
     if (!state.recurringTasks) state.recurringTasks = [];
     if (!state.days) state.days = {};
+    selectedDate = todayStr();
     showView("today");
   }
 
